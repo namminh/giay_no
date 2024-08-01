@@ -1,0 +1,376 @@
+#include  "common.h"
+#include  "co_extern.h"
+
+/*******************************************************************************
+* Name: hcm_insert_hv_conf_master
+* CreateBy: Quan-dh
+* CreateOn: 11/26/2007
+*
+* Input:
+*           t_hcm: Cau truc tin dien yeu cau tra soat
+*          	o_r_id: Dinh danh chieu di den
+*
+* Output:
+*			res_code: M  tra loi trong truong hop loi
+* Return:
+*              0 : Luu tin dien yeu cau huy thanh cong.
+*             -1 : Trung tin dien
+*           -100 : Loi thao tac csdl
+* Related table:
+*               HV_CONF_MASTER
+*
+* Description:  Luu tin dien yeu cau tra soat vao bang  HV_CONF_MASTER.
+*                Thanh cong tra ve thanh cong (return 0).Neu trung khoa tin
+*                dien tra ve loi nghiep vu(return -1).
+*
+* ModifyBy: dai-nt
+* ModifyOn: valentine day 2008
+*
+* ------------------------------------------------------------------------------
+*/
+int hcm_insert_hv_conf_master( char * o_r_id , MSG_HCM * t_hcm, char * res_code)
+{
+	
+    char    s_mod[] = "hcm_insert_hv_conf_master"; /* Function name          */
+    char    saf_flag[2];                     /* Co dinh huong chieu di den   */
+    int     saf_cnt=0;                       /* So lan forward               */
+    char    rescode[RES_CODE_LEN+1] ;
+    memset(rescode, 0x00, RES_CODE_LEN+1);
+    memset(saf_flag,0x00,2) ;
+    memcpy(saf_flag,SAF_OFF,1) ;
+
+
+    /* Luu tin dien yeu cau tra soat vao bang HV_CONF_MASTER */
+    EXEC SQL
+		INSERT INTO HV_CONF_MASTER
+		(
+            MSG_NO           ,
+            TR_DATE          ,
+            TR_TYPE          ,
+            O_R_ID           ,
+            O_CI_ID          ,
+            R_CI_ID          ,
+            O_RPC_ID         ,
+            R_RPC_ID         ,
+            RES_CODE         ,
+            TR_CRT_TIME      ,
+            APPROVE_TIME     ,
+            APPROVER_CODE    ,
+            MSG_RCV_TIME     ,
+            ORG_MSG_NO       ,
+            ORG_TR_DATE      ,
+            ORG_O_CI_ID      ,
+            ORG_O_IND_CI_ID  ,
+            ORG_R_IND_CI_ID  ,
+            ORG_R_CI_ID      ,
+            TR_CONTENT       ,
+            E_SIGN           ,
+            SAF_FLAG         ,
+            TAD_ID           ,
+            MSG_SND_TIME     ,
+            SAF_CNT          ,
+            /* dai-nt sua bdau*/
+            CONF_MSG_NO     ,
+            CONF_TR_DATE    ,
+            CONF_TR_TYPE    ,
+            CONF_O_CI_ID    ,
+            ORG_TR_TYPE     ,
+            RESPOND_TIME    ,
+            ORD_FILE_NAME
+            /* dai-nt sua - kthuc */
+         )
+		VALUES
+		(
+            :t_hcm->t_comm.s_msg_no  ,
+            :t_hcm->t_comm.s_tr_date ,
+            :t_hcm->t_comm.s_tr_type ,
+            :o_r_id ,                           /* Dinh danh chieu di den */
+            :t_hcm->t_comm.s_o_ci_id ,
+            :t_hcm->t_rout.s_r_ci_id ,
+            :t_hcm->t_comm.s_o_rpc_id  ,
+            :t_hcm->t_rout.s_r_rpc_id  ,
+            :t_hcm->t_comm.s_res_code    ,
+            :t_hcm->t_comm.s_tr_crt_time ,
+            :t_hcm->t_tran.s_approve_time   ,
+            :t_hcm->t_tran.s_approver_code  ,
+            /* thoi diem nhan giao dich */
+            TO_CHAR(SYSDATE,'yyyymmddhh24miss') ,
+            :t_hcm->t_tran.s_org_msg_no  ,
+            :t_hcm->t_tran.s_org_tr_date ,
+            :t_hcm->t_tran.s_org_o_ci_id ,
+            :t_hcm->t_tran.s_org_o_ind_ci_id ,
+            :t_hcm->t_tran.s_org_r_ind_ci_id ,
+            :t_hcm->t_tran.s_org_r_ci_id ,
+            :t_hcm->t_tran.s_tr_content ,
+            :t_hcm->t_tran.s_e_sign     ,
+            :saf_flag  ,
+            :t_hcm->t_comm.s_tad_id,
+            :t_hcm->t_comm.s_send_time,
+            :saf_cnt ,
+             /* dai-nt sua bdau*/
+            :t_hcm->t_tran.s_conf_msg_no,
+            :t_hcm->t_tran.s_conf_tr_date,
+            :t_hcm->t_tran.s_conf_tr_type,
+            :t_hcm->t_tran.s_conf_o_ci_id,
+            :t_hcm->t_tran.s_org_tr_type,
+            :t_hcm->t_comm.s_respond_time,
+            NULL
+            /* dai-nt sua - kthuc */
+        );
+    /* Neu insert thanh cong : return 0 */
+	if ( SQLCODE == SQL_OK ) {
+         return SUCCESS;
+    }
+
+    /* Neu insert bi trung khoa:return -1*/
+	else if (SQLCODE == SQL_DUPREC) {
+		co_write_log(SYS,ON,"[%s] [E] [trung tin dien tra soat]"
+				"Khoa: MSG_NO: (%s) - TR_DATE: (%s) - O_R_ID: (%s) - O_CI_ID: (%s)",
+				s_mod,
+				t_hcm->t_comm.s_msg_no,
+				t_hcm->t_comm.s_tr_date,
+				o_r_id,
+				t_hcm->t_comm.s_o_ci_id);
+		EXEC SQL
+            SELECT  RES_CODE
+            INTO    :rescode
+            FROM    HV_CONF_MASTER
+        WHERE
+                MSG_NO		= :t_hcm->t_comm.s_msg_no
+        AND     TR_DATE		= :t_hcm->t_comm.s_tr_date
+        AND     O_CI_ID		= ltrim(rtrim(:t_hcm->t_comm.s_o_ci_id))
+       	AND 	O_R_ID		= :o_r_id;
+       	if (SQLCODE != SQL_OK){
+			co_write_log(SYS,ON,"[%s] [E] [Loi (%d) : (%s) "
+					"khi lay thong tin tu bang HV_CONF_MASTER]"
+					"[Khoa: MSG_NO: (%s) - TR_DATE: (%s) - "
+					"O_R_ID: (%s) - O_CI_ID: (%s)]",
+					s_mod,
+					SQLCODE,SQLERRMSG,
+					t_hcm->t_comm.s_msg_no,
+					t_hcm->t_comm.s_tr_date,
+					o_r_id,
+					t_hcm->t_comm.s_o_ci_id);
+			 return DB_ERROR;
+        }
+        memcpy(res_code,rescode,RES_CODE_LEN);
+        return -1;
+
+	}/* enf if SQLCODE == SQL_DUPREC */
+    /* Neu bi loi khi luu tin dien yeu cau tra soat: return -100 */
+	else {
+		co_write_log(SYS,ON,"[%s] [E] [Loi (%d) : (%s) "
+				"khi insert bang HV_CONF_MASTER]"
+				"[Khoa: MSG_NO: (%s) - TR_DATE: (%s) - "
+				"O_R_ID: (%s) - O_CI_ID: (%s)]",
+				s_mod,
+				SQLCODE,SQLERRMSG,
+				t_hcm->t_comm.s_msg_no,
+				t_hcm->t_comm.s_tr_date,
+				o_r_id,
+				t_hcm->t_comm.s_o_ci_id);
+	    return DB_ERROR;
+	}
+} /*end func*/
+
+int hv_insert_debit_paper(  MSG_PAPER * t_hcm, char * res_code)
+{
+	
+    char    s_mod[] = "hv_insert_debit_paper"; /* Function name          */
+    char    saf_flag[2];                     /* Co dinh huong chieu di den   */
+    int     saf_cnt=0;                       /* So lan forward               */
+    char    rescode[RES_CODE_LEN+1] ;
+    memset(rescode, 0x00, RES_CODE_LEN+1);
+    memset(saf_flag,0x00,2) ;
+    memcpy(saf_flag,SAF_OFF,1) ;
+
+
+    /* Luu tin dien yeu cau tra soat vao bang HV_CONF_MASTER */
+      EXEC SQL
+		INSERT INTO HV_DEBIT_PAPER
+		(
+           tr_type      	,
+tr_date      	,
+o_ci_id      	,
+r_ci_id      	,
+serial_no    	,
+relation_no  	,
+currency     	,
+appr_id      	,
+create_time  	,
+appr_time    	,
+sd_time      	,
+err_msg    	,
+res_code	,
+e_sign       	,
+debit_amount 	,
+interest_rate	,
+content      	,
+appr_in_id   	,
+appr_in_time 	,
+MSG_RCV_TIME     
+
+         )
+		VALUES
+		(
+            :t_hcm->t_comm.s_tr_type  ,
+            :t_hcm->t_comm.s_tr_date ,
+           
+         
+            :t_hcm->t_comm.s_o_ci_id ,
+            :t_hcm->t_rout.s_r_ci_id ,
+             :t_hcm->t_comm.s_msg_no   ,
+             :t_hcm->t_tran.s_relation_no   ,
+             :t_hcm->t_tran.s_currency_code   ,
+                                        
+           	:t_hcm->t_tran.s_approver_code   ,
+              :t_hcm->t_comm.s_tr_crt_time   ,
+       		:t_hcm->t_tran.s_approve_time   ,
+      		:t_hcm->t_comm.s_send_time   ,
+        '',
+            :t_hcm->t_comm.s_res_code    ,
+                  
+            :t_hcm->t_tran.s_e_sign     ,
+              to_number(:t_hcm->t_tran.s_dr_sum)/100   ,
+              to_number(:t_hcm->t_tran.s_interest_rate)/100   ,
+                :t_hcm->t_tran.s_tr_content ,
+                '',
+                '',
+		TO_CHAR(SYSDATE,'yyyymmddhh24miss')
+       
+        );
+    /* Neu insert thanh cong : return 0 */
+	if ( SQLCODE == SQL_OK ) {
+         return SUCCESS;
+    }
+
+    /* Neu insert bi trung khoa:return -1*/
+	else if (SQLCODE == SQL_DUPREC) {
+		co_write_log(SYS,ON,"[%s] [E] [trung tin dien giay no]"
+				"Khoa: MSG_NO: (%s) - TR_DATE: (%s) -  - O_CI_ID: (%s)",
+				s_mod,
+				t_hcm->t_comm.s_msg_no,
+				t_hcm->t_comm.s_tr_date,
+								t_hcm->t_comm.s_o_ci_id);
+		EXEC SQL
+            SELECT  RES_CODE
+            INTO    :rescode
+            FROM    HV_DEBIT_PAPER
+        WHERE
+                SERIAL_NO		= :t_hcm->t_comm.s_msg_no
+        AND     TR_DATE		= :t_hcm->t_comm.s_tr_date
+        AND     O_CI_ID		= ltrim(rtrim(:t_hcm->t_comm.s_o_ci_id));
+       
+       	if (SQLCODE != SQL_OK){
+			co_write_log(SYS,ON,"[%s] [E] [Loi (%d) : (%s) "
+					"khi lay thong tin tu bang HV_DEBIT_PAPER]"
+					"[Khoa: MSG_NO: (%s) - TR_DATE: (%s) - "
+					" - O_CI_ID: (%s)]",
+					s_mod,
+					SQLCODE,SQLERRMSG,
+					t_hcm->t_comm.s_msg_no,
+					t_hcm->t_comm.s_tr_date,
+										t_hcm->t_comm.s_o_ci_id);
+			 return DB_ERROR;
+        }
+        memcpy(res_code,rescode,RES_CODE_LEN);
+        return -1;
+
+	}/* enf if SQLCODE == SQL_DUPREC */
+    /* Neu bi loi khi luu tin dien yeu cau tra soat: return -100 */
+	else {
+		co_write_log(SYS,ON,"[%s] [E] [Loi (%d) : (%s) "
+				"khi insert bang HV_DEBIT_PAPER]"
+				"[Khoa: MSG_NO: (%s) - TR_DATE: (%s) - "
+				" - O_CI_ID: (%s)]",
+				s_mod,
+				SQLCODE,SQLERRMSG,
+				t_hcm->t_comm.s_msg_no,
+				t_hcm->t_comm.s_tr_date,
+								t_hcm->t_comm.s_o_ci_id);
+	    return DB_ERROR;
+	}
+} /*end func*/
+
+/*******************************************************************************
+* Name: hcm_update_hv_conf_master
+* CreateBy: Quan-dh
+* CreateOn: 11/26/2007
+*
+* Input:
+*
+*         o_r_id   : Dinh danh chieu di, den
+*         msg_no   : So hieu giao dich
+*         tr_date  : Ngay giao dich
+*         o_ci_id  : Dinh danh ngan hang gui giao dich tra soat
+*         res_code : Ma tra loi giao dich
+*         saf_flag : Co dinh huong
+*
+* Output:
+*
+* Return:
+*              0 : Cap nhat ket qua xu ly thanh cong.
+*             -1 : Khong tim thay du lieu
+*           -100 : Loi thao tac csdl
+* Related table:
+*               HV_CONF_MASTER
+*
+* Description:  Cap nhat ma tra loi va co chuyen tiep cho tin dien tra soat
+*                trong bang  HV_CONF_MASTER.( Mot trong hai truong ma tra loi
+*                hoac co chuyen tiep co the null)
+*                Thanh cong tra ve thanh cong (return 0)
+*
+* ModifyBy:
+* ModifyOn:
+*
+* ------------------------------------------------------------------------------
+*/
+int hcm_update_hv_conf_master(char * o_r_id, char* msg_no ,char * tr_date,
+                             char * o_ci_id, char * res_code , char *respond_time, char * saf_flag)
+{
+    char    s_mod[] = "hcm_update_hv_conf_master"; /* Function name          */
+
+
+
+    /* Cap nhat ma tra loi va co chuyen tiep cho tin dien
+       tra soat trong bang HV_CONF_MASTER                                  */
+    EXEC SQL
+        UPDATE      HV_CONF_MASTER
+        SET
+            RES_CODE    = NVL(:res_code , RES_CODE),
+            RESPOND_TIME  = NVL(:respond_time , RESPOND_TIME),
+            SAF_FLAG	= NVL(:saf_flag , SAF_FLAG)
+
+        WHERE
+                TR_DATE		= :tr_date
+        AND     O_CI_ID		= ltrim(rtrim(:o_ci_id))
+        AND     MSG_NO		= :msg_no
+        AND     O_R_ID    = :o_r_id;
+
+
+        /* Neu cap nhat tinh trang that bai */
+		if (SQLCODE != SQL_OK){
+            if(SQLCODE ==SQL_NOTFOUND){
+                co_write_log(SYS,ON,
+            	      "[%s] [Khong tim thay ban ghi can update "
+            	      "trong bang HV_CONF_MASTER] "
+            	      "Khoa: TR_DATE (%s) - O_CI_ID (%s) - "
+            	      "MSG_NO (%s) - O_R_ID (%s)",
+                       s_mod,
+                       tr_date, o_ci_id, msg_no, o_r_id);
+                 return FAIL;
+            }
+            else{
+                co_write_log(SYS,ON,
+            	      "[%s] [Loi (%d) : (%s) khi update bang HV_CONF_MASTER] "
+            	      "Khoa: TR_DATE (%s) - O_CI_ID (%s) - "
+            	      "MSG_NO (%s) - O_R_ID (%s)",
+                       s_mod,SQLCODE, SQLERRMSG,
+                       tr_date, o_ci_id, msg_no, o_r_id);
+                return DB_ERROR;
+            }
+          }
+    /* Cap nhat thanh cong */
+    return SUCCESS;
+} /*end func*/
+
